@@ -4,9 +4,12 @@ from rest_framework.response import Response
 from passlib.context import CryptContext
 from drf_spectacular.utils import extend_schema
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.exceptions import TokenError
 import os
 from dotenv import load_dotenv
 from datetime import timedelta
+from django.conf import settings
+from utils.jwt_check import JWTauth
 
 from .models import User
 from .serializers import RegisterSerializer, LoginSerializer, LoginResponseSerializer, RegisterSerializerResponse
@@ -85,5 +88,60 @@ class UserLogin(APIView):
                     path='/'
                 )
         return response
+    
+class AccessTokenRefresh(APIView):
+    
+    def post(self,request):
+        refresh_token = request.COOKIES.get('refresh_token')
+        if not refresh_token:
+            return Response(
+                {'detail': 'Refresh token not found'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+        try:
+            refresh = RefreshToken(refresh_token)
+            access = refresh.access_token
+
+            if settings.SIMPLE_JWT.get('ROTATE_REFRESH_TOKENS'):
+                refresh.set_jti()
+                refresh.set_exp()
+
+            response = Response(
+                {
+                    'access_token': str(access)
+                },
+                status=status.HTTP_200_OK
+            )
+
+            # update refresh cookie if rotated
+            response.set_cookie(
+                key="refresh_token",
+                value=str(refresh),
+                httponly=True,
+                secure=True,
+                samesite="Lax",
+                max_age=max_age_seconds,
+                path='/'
+            )
+
+            return response
+
+        except TokenError:
+            return Response(
+                {"detail": "Invalid or expired refresh token"},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+
+class UserProfile(APIView):
+    authentication_classes = [JWTauth] 
+
+    def post(self, request):
+        user = request.user 
+        return Response({
+            "username": user.username,
+            "email": user.email,
+            "created_at": user.created_at
+        }
+        )
         
 
