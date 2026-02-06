@@ -5,6 +5,7 @@ from passlib.context import CryptContext
 from drf_spectacular.utils import extend_schema
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
+from rest_framework.permissions import IsAuthenticated
 import os
 from dotenv import load_dotenv
 from datetime import timedelta
@@ -12,7 +13,7 @@ from django.conf import settings
 from utils.jwt_check import JWTauth
 
 from .models import User
-from .serializers import RegisterSerializer, LoginSerializer, LoginResponseSerializer, RegisterSerializerResponse
+from .serializers import RegisterSerializer, LoginSerializer, LoginResponseSerializer, RegisterSerializerResponse,UserUpdateSerializer
 
 load_dotenv()
 
@@ -135,7 +136,7 @@ class AccessTokenRefresh(APIView):
 class UserProfile(APIView):
     authentication_classes = [JWTauth] 
 
-    def post(self, request):
+    def get(self, request):
         user = request.user 
         return Response({
             "username": user.username,
@@ -143,5 +144,19 @@ class UserProfile(APIView):
             "created_at": user.created_at
         }
         )
+    
+class UserUpdate(APIView):
+    authentication_classes = [JWTauth]
+
+    def patch(self, request):
+        user = request.user
+        serializer = UserUpdateSerializer(user, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+    
+    def delete(self, request):
+        user = request.user
+        user.delete()
         
 

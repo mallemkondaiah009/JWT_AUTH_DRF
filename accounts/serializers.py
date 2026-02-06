@@ -77,7 +77,12 @@ class LoginResponseSerializer(serializers.Serializer):
 
 class RegisterSerializerResponse(serializers.Serializer):
     data = serializers.CharField()
-    message = serializers.CharField()        
+    message = serializers.CharField()
+
+class UserUpdateSerializer(ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['email', 'username']     
 
          
 
